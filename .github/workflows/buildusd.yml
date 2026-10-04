@@ -12,35 +12,79 @@ on:
   pull_request:
     branches:
       - aousd-ci-cd-ct
+  workflow_dispatch:
+    inputs:
+      source_event_name:
+        description: OpenUSD Source event type
+        required: true
+        type: choice
+        options:
+          - pull_request
+          - push
+      source_repository:
+        description: OpenUSD Source repository in OWNER/REPO form
+        required: true
+        type: string
+      source_ref:
+        description: OpenUSD Source Git ref
+        required: true
+        type: string
+      source_sha:
+        description: OpenUSD Source commit SHA
+        required: true
+        type: string
+      pull_request:
+        description: OpenUSD Source pull request number
+        required: false
+        type: number
+      source_base_ref:
+        description: OpenUSD Source pull request target branch
+        required: false
+        type: string
 jobs:
   Validation:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
+    outputs:
+      checkout-submodules: ${{ steps.source.outputs.checkout-submodules }}
+      external-source: ${{ steps.source.outputs.external-source }}
+      source-event-name: ${{ steps.source.outputs.source-event-name }}
+      source-ref: ${{ steps.source.outputs.source-ref }}
+      source-repository: ${{ steps.source.outputs.source-repository }}
+      source-sha: ${{ steps.source.outputs.source-sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
-          submodules: recursive
           ref: ${{ github.ref }}
+      - name: Resolve source revision
+        id: source
+        env:
+          OPENUSD_SOURCE_REPOSITORY: ${{ vars.OPENUSD_SOURCE_REPOSITORY }}
+        run: python3 ci/resolve_source.py
       - name: Test CI merge policy
         run: python3 -m unittest discover -s ci/tests -v
 
   Linux:
     needs:
       - Validation
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write # Grant write permissions in order to upload artifacts
     env:
       PYTHON_VERSION: "3.11.16"
+      SOURCE_EVENT_NAME: ${{ needs.Validation.outputs.source-event-name }}
     timeout-minutes: 120
     steps:
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
-          submodules: recursive
+          submodules: ${{ needs.Validation.outputs.checkout-submodules }}
           ref: ${{ github.ref }}
+      - name: Select OpenUSD source
+        if: needs.Validation.outputs.external-source == 'true'
+        uses: ./.github/actions/checkout-dispatched-source
+        with:
+          source-repository: ${{ needs.Validation.outputs.source-repository }}
+          source-sha: ${{ needs.Validation.outputs.source-sha }}
       - name: Restore cached artifacts
         id: cache-usd-build-dependency
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 #v4.3.0
@@ -70,7 +114,7 @@ jobs:
           #
           # XXX: Ignore OpenJPEG library installed on runner when building OIIO since it appears to be broken.
           # See https://bugs.launchpad.net/ubuntu/+source/openjpeg2/+bug/2060106
-          if [ "$GITHUB_EVENT_NAME" == "push" ]; then
+          if [ "$SOURCE_EVENT_NAME" == "push" ]; then
             python3 build_scripts/build_usd.py --tests --no-materialx --build USDgen/build --src USDgen/src USDinst --build-args USD,"-DPXR_HEADLESS_TEST_MODE=OFF" OPENIMAGEIO,"-DUSE_OpenJPEG=OFF" -v
           else
             python3 build_scripts/build_usd.py --no-materialx --build USDgen/build --src USDgen/src USDinst --build-args USD,"-DPXR_HEADLESS_TEST_MODE=ON -DPXR_BUILD_TESTS=ON" -v
@@ -102,11 +146,10 @@ jobs:
 
   GPUTests:
     needs:
+      - Validation
       - Linux
-    if: ${{ github.event_name == 'push' }}
+    if: ${{ needs.Validation.outputs.source-event-name == 'push' }}
     runs-on: enterprise-linux-x64-t4gpu-4core-16vram-28ram-176ssd
-    permissions:
-      contents: write # Grant write permissions in order to upload artifacts
     env:
       # Ensure python is installed in the same location across different runners
       AGENT_TOOLSDIRECTORY: /opt/hostedtoolcache
@@ -186,10 +229,7 @@ jobs:
   macOS:
     needs:
       - Validation
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     runs-on: macos-15
-    permissions:
-      contents: write # Grant write permissions in order to upload artifacts
     env:
       PYTHON_VERSION: "3.11.9"
     timeout-minutes: 120
@@ -197,8 +237,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
-          submodules: recursive
+          submodules: ${{ needs.Validation.outputs.checkout-submodules }}
           ref: ${{ github.ref }}
+      - name: Select OpenUSD source
+        if: needs.Validation.outputs.external-source == 'true'
+        uses: ./.github/actions/checkout-dispatched-source
+        with:
+          source-repository: ${{ needs.Validation.outputs.source-repository }}
+          source-sha: ${{ needs.Validation.outputs.source-sha }}
       - name: Restore cached artifacts
         id: cache-usd-build-dependency
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 #v4.3.0
@@ -253,10 +299,7 @@ jobs:
   Windows:
     needs:
       - Validation
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     runs-on: windows-2022
-    permissions:
-      contents: write # Grant write permissions in order to upload artifacts
     env:
       PYTHON_VERSION: "3.11.9"
       PYTHONIOENCODING: "utf-8"
@@ -267,8 +310,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
-          submodules: recursive
+          submodules: ${{ needs.Validation.outputs.checkout-submodules }}
           ref: ${{ github.ref }}
+      - name: Select OpenUSD source
+        if: needs.Validation.outputs.external-source == 'true'
+        uses: ./.github/actions/checkout-dispatched-source
+        with:
+          source-repository: ${{ needs.Validation.outputs.source-repository }}
+          source-sha: ${{ needs.Validation.outputs.source-sha }}
       - name: ccache
         uses: hendrikmuhs/ccache-action@33522472633dbd32578e909b315f5ee43ba878ce #v1.2.22
         with:
@@ -322,20 +371,23 @@ jobs:
   Wasm:
     needs:
       - Validation
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     strategy:
       matrix:
         target: [Wasm, Wasm64]
       fail-fast: false
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write # Grant write permissions in order to upload artifacts
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
-          submodules: recursive
+          submodules: ${{ needs.Validation.outputs.checkout-submodules }}
           ref: ${{ github.ref }}
+      - name: Select OpenUSD source
+        if: needs.Validation.outputs.external-source == 'true'
+        uses: ./.github/actions/checkout-dispatched-source
+        with:
+          source-repository: ${{ needs.Validation.outputs.source-repository }}
+          source-sha: ${{ needs.Validation.outputs.source-sha }}
       - name: Install Emscripten SDK
         run: |
           git clone https://github.com/emscripten-core/emsdk.git

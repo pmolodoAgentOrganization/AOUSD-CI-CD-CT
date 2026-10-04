@@ -1,0 +1,21 @@
+name: Checkout dispatched OpenUSD source
+description: Replace the pinned submodule with an externally dispatched source revision
+
+inputs:
+  source-repository:
+    description: External source repository
+    required: true
+  source-sha:
+    description: External source commit
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout dispatched OpenUSD source
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
+      with:
+        repository: ${{ inputs.source-repository }}
+        ref: ${{ inputs.source-sha }}
+        path: OpenUSD
+        persist-credentials: false
