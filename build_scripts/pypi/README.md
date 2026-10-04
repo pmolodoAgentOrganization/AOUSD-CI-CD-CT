@@ -13,7 +13,7 @@ updated. This may include things like the supported python versions in
 setup.py.
 
 The package's version number is derived from the USD version specified in
-cmake/defaults/Version.cmake. It's important that this version number is
+OpenUSD/cmake/defaults/Version.cmake. It's important that this version number is
 incremented for each published package, so that pip can manage installs and
 upgrades as expected (see [PEP440](https://www.python.org/dev/peps/pep-0440)).
 
@@ -75,4 +75,3 @@ there.
 For that reason we have a docker environment defined in the docker folder in
 this directory. If that Dockerfile is updated, it must also be built, uploaded
 to a docker registry where GitHub workflow can find it.
-

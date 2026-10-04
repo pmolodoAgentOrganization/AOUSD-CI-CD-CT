@@ -1,9 +1,0 @@
-{
-    "Plugins": [
-        {
-            "Type": "resource",
-            "Name": "TestPlugParenWildcard",
-            "Info": {}
-        }
-    ]
-}

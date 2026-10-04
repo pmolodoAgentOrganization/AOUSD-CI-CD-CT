@@ -1,7 +1,0 @@
-#usda 1.0
-
-def "Model" (
-    append references = @./root.usda@</AnotherParent>
-)
-{
-}

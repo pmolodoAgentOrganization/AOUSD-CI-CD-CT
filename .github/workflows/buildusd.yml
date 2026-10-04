@@ -6,38 +6,29 @@ permissions:
 on:
   push:
     branches:
-      - dev
+      - aousd-ci-cd-ct
       - 'v[0-9][0-9].[0-9][0-9]'
   pull_request:
     branches:
-      - dev
+      - aousd-ci-cd-ct
       - 'v[0-9][0-9].[0-9][0-9]'
-    paths:
-      - '**'
-      - '!.github/workflows/**'
-
 jobs:
   Validation:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
-    outputs:
-      validation-failed: ${{ steps.changed-workflows.outputs.any_changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
+          submodules: recursive
           ref: ${{ github.ref }}
-      - name: Check workflows directory
-        id: changed-workflows
-        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 #v47.0.6
-        with:
-          files: |
-            .github/workflows/**
+      - name: Test CI merge policy
+        run: python3 -m unittest discover -s ci/tests -v
 
   Linux:
     needs:
       - Validation
-    if: ${{ (github.event_name == 'pull_request' && needs.Validation.outputs.validation-failed != 'true') || github.event_name == 'push' }}
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     runs-on: ubuntu-22.04
     permissions:
       contents: write # Grant write permissions in order to upload artifacts
@@ -48,6 +39,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
+          submodules: recursive
           ref: ${{ github.ref }}
       - name: Restore cached artifacts
         id: cache-usd-build-dependency
@@ -194,7 +186,7 @@ jobs:
   macOS:
     needs:
       - Validation
-    if: ${{ (github.event_name == 'pull_request' && needs.Validation.outputs.validation-failed != 'true') || github.event_name == 'push' }}
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     runs-on: macos-15
     permissions:
       contents: write # Grant write permissions in order to upload artifacts
@@ -205,6 +197,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
+          submodules: recursive
           ref: ${{ github.ref }}
       - name: Restore cached artifacts
         id: cache-usd-build-dependency
@@ -260,7 +253,7 @@ jobs:
   Windows:
     needs:
       - Validation
-    if: ${{ (github.event_name == 'pull_request' && needs.Validation.outputs.validation-failed != 'true') || github.event_name == 'push' }}
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     runs-on: windows-2022
     permissions:
       contents: write # Grant write permissions in order to upload artifacts
@@ -274,6 +267,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
+          submodules: recursive
           ref: ${{ github.ref }}
       - name: ccache
         uses: hendrikmuhs/ccache-action@33522472633dbd32578e909b315f5ee43ba878ce #v1.2.22
@@ -328,7 +322,7 @@ jobs:
   Wasm:
     needs:
       - Validation
-    if: ${{ (github.event_name == 'pull_request' && needs.Validation.outputs.validation-failed != 'true') || github.event_name == 'push' }}
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     strategy:
       matrix:
         target: [Wasm, Wasm64]
@@ -340,6 +334,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
+          submodules: recursive
           ref: ${{ github.ref }}
       - name: Install Emscripten SDK
         run: |

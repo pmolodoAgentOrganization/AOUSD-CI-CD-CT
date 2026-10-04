@@ -2072,6 +2072,10 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument("install_dir", type=str, 
                     help="Directory where USD will be installed")
+parser.add_argument("--usd-src", type=str,
+                    default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                         "..", "OpenUSD"),
+                    help="OpenUSD source directory (default: OpenUSD submodule)")
 parser.add_argument("-n", "--dry_run", dest="dry_run", action="store_true",
                     help="Only summarize what would happen")
                     
@@ -2393,9 +2397,11 @@ args = parser.parse_args()
 
 class InstallContext:
     def __init__(self, args):
-        # Assume the USD source directory is in the parent directory
-        self.usdSrcDir = os.path.normpath(
-            os.path.join(os.path.abspath(os.path.dirname(__file__)), ".."))
+        self.usdSrcDir = os.path.abspath(args.usd_src)
+        if not os.path.isfile(os.path.join(self.usdSrcDir, "CMakeLists.txt")):
+            raise ValueError("OpenUSD source is missing at {0}. Run "
+                             "'git submodule update --init OpenUSD' or pass "
+                             "--usd-src.".format(self.usdSrcDir))
 
         # Directory where USD will be installed
         self.usdInstDir = os.path.abspath(args.install_dir)
