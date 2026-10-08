@@ -1,0 +1,9 @@
+runners:
+  - name: aws-t4
+    cloud: aws
+    region: us-west-1
+    instance_type: g4dn.2xlarge
+    machine_image: ami-057d9d9b241c26dd5
+    preemptible: false
+    labels:
+      - cirun-aws-t4

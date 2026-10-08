@@ -1,0 +1,23 @@
+name: Cirun T4 smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gpu:
+    runs-on: "cirun-aws-t4--${{ github.run_id }}"
+    timeout-minutes: 10
+    steps:
+      - name: Inspect runner and GPU
+        shell: bash
+        run: |
+          nvidia-smi
+          cat /etc/os-release
+          lscpu
+          free -h
+          df -h
+          id
+          pwd
